@@ -12,15 +12,20 @@ let email = "john.doe@gmail.com";
 firstNameDisplay.textContent = firstName;
 lastNameDisplay.textContent = lastName;
 
-const url = `http://146.185.154.90:8000/blog/${email}/posts`;
 modal.style.display = "none";
 
 const getMessages = async () => {
+  const searchValue = document.querySelector("#emailSearchInput").value.trim();
+
+  const usedEmail = searchValue || email;
+  const fetchUrl = `http://146.185.154.90:8000/blog/${usedEmail}/posts`;
+
   try {
-    const response = await fetch(url);
+    const response = await fetch(fetchUrl);
     if (!response.ok) {
       throw new Error("Ошибка загрузки сообщений");
     }
+
     const data = await response.json();
     renderPage(data);
   } catch (error) {
@@ -29,6 +34,7 @@ const getMessages = async () => {
 };
 
 const postMessage = async (message) => {
+  const url = `http://146.185.154.90:8000/blog/${email}/posts`;
   const body = new URLSearchParams();
   body.append("message", message);
 
@@ -55,7 +61,7 @@ const renderPage = (data) => {
   const ul = document.getElementById("messageList");
   ul.innerHTML = "";
 
-  data.forEach((sms) => {
+  data.reverse().forEach((sms) => {
     const li = document.createElement("li");
     li.innerHTML = `
           <div class="card mb-3 shadow-sm border-start border-primary border-4">
@@ -67,7 +73,7 @@ const renderPage = (data) => {
     } пишет... </h5>
                   <h6 class="card-subtitle text-muted">${sms.user.email}</h6>
                 </div>
-                <small class="text-muted">${new Date(
+                <small class="text-amuted">${new Date(
                   sms.datetime
                 ).toLocaleString()}</small>
               </div>
@@ -78,6 +84,31 @@ const renderPage = (data) => {
     `;
     ul.appendChild(li);
   });
+};
+
+const getProfile = async () => {
+  const profileUrl = `http://146.185.154.90:8000/blog/${email}/profile`;
+  try {
+    const response = await fetch(profileUrl);
+    if (!response.ok) {
+      throw new Error("Ошибка загрузки профиля");
+    }
+
+    const data = await response.json();
+
+    if (data.lastName === "Doe" && data.firstName === "John") {
+      alert("Чтобы начать работу, вам нужно создать имя и фамилию");
+    } else {
+      await getMessages();
+    }
+
+    localStorage.setItem("firstName", data.firstName);
+    localStorage.setItem("lastName", data.lastName);
+
+    return data;
+  } catch (error) {
+    console.error("Ошибка при загрузке профиля:", error.message);
+  }
 };
 
 const updateProfile = async () => {
@@ -112,9 +143,20 @@ document.getElementById("editName").addEventListener("click", async (e) => {
   modal.style.display = "block";
 });
 
+document.getElementById("messageList").addEventListener("click", async (e) => {
+  if (e.target.classList.contains("deleteBtn")) {
+    const postId = e.target.getAttribute("data-id");
+    if (!postId) {
+      console.error("Нет ID поста для удаления");
+      return;
+    }
+    console.log("Удаляем пост с ID:", postId);
+    await deletePost(postId);
+  }
+});
+
 document.querySelector(".close").addEventListener("click", async (e) => {
   e.preventDefault();
-
   const textFirstName = firstNameInput.value.trim();
   const textLastName = lastNameInput.value.trim();
 
@@ -140,4 +182,14 @@ document.getElementById("messageForm").addEventListener("submit", async (e) => {
   }
 });
 
-document.addEventListener("DOMContentLoaded", getMessages);
+document.querySelector(".searchBtn").addEventListener("click", async (e) => {
+  e.preventDefault();
+  await getMessages();
+});
+
+document.querySelector(".clear").addEventListener("click", async (e) => {
+  document.querySelector("#emailSearchInput").value = "";
+  await getMessages();
+});
+
+document.addEventListener("DOMContentLoaded", getProfile);
